@@ -4,7 +4,7 @@ extern crate log;
 
 extern crate simplelog;
 use simplelog::*;
-use log::{info, trace, warn};
+use log::{info};
 
 mod config;
 
