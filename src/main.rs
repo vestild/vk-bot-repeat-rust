@@ -1,17 +1,22 @@
 #[macro_use]
 extern crate lazy_static;
-extern crate log;
 
-extern crate simplelog;
 use simplelog::*;
 use log::{info};
+use tokio::run;
+use futures::future::lazy;
 
 mod config;
+mod init;
 
 fn main() {
-    SimpleLogger::init(LevelFilter::Trace, Config::default()).unwrap();
+    SimpleLogger::init(LevelFilter::Info, Config::default()).unwrap();
 
-    info!(target: "main", "token {:?}", format_secret(config::CONF.token()))   ;
+    info!(target: "main", "token {:?}", format_secret(config::CONF.token()));
+
+    run(lazy(|| {
+        init::run()
+    }));
 }
 
 fn format_secret(s: &str) -> String {
