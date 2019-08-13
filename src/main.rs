@@ -8,6 +8,7 @@ use futures::future::lazy;
 
 mod config;
 mod init;
+mod server_config;
 
 fn main() {
     SimpleLogger::init(LevelFilter::Info, Config::default()).unwrap();
