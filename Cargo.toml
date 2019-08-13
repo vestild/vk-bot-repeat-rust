@@ -12,3 +12,7 @@ reqwest = "0.9.18"
 serde = "1.0"
 futures = "0.1.23"
 tokio = { version = "0.1.7", default-features = false, features = ["rt-full", "tcp"] }
+
+[profile.release]
+opt-level = 'z'  # Optimize for size.
+lto = true
