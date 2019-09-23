@@ -1,10 +1,11 @@
-use std::mem;
 use log::{info, error};
-use reqwest::r#async::{Client, Decoder};
-use futures::{Future, Stream};
+use reqwest::r#async::{Client};
+use futures::{Future};
 use serde::{Deserialize, Serialize};
 
 use crate::config;
+use crate::server_config::{ConfigProvider, ServerConfig};
+use futures::future::{Either, IntoFuture};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ResponseWrapper<T> {
@@ -25,22 +26,20 @@ struct Error {
     error_msg: String,
 }
 
-pub fn run() -> impl Future<Item=(), Error=()> {
-    let uri = format!("https://api.vk.com/method/groups.getLongPollServer?group_id={}&access_token={}&v=5.100",
-                      config::CONF.group_id(), config::CONF.token());
+pub fn run(config: (ConfigProvider, Option<ServerConfig>)) -> impl Future<Item=(), Error=()> {
+    init_config(config)
+        .and_then(request)
+        .map_err(|e| error!("error {}", e))
+}
 
-    Client::new()
-        .get(&uri)
-        .send()
-        .and_then(|mut res| {
-            info!("status {}", res.status());
+fn init_config((provider, config): (ConfigProvider, Option<ServerConfig>))
+    -> impl Future<Item=(ConfigProvider, ServerConfig), Error=String> {
+    match config {
+        Some(c) => Either::A(Ok((provider, c)).into_future()),
+        None => Either::B(provider.reset())
+    }
+}
 
-            res.json::<ResponseWrapper<LongPollResponse>>()
-        })
-        .map(|resp| {
-            info!("resp {:#?}", resp);
-        })
-        .map_err(|err| {
-            error!("Error: {}", err);
-        })
+fn request((provider, config): (ConfigProvider, ServerConfig)) -> impl Future<Item=(), Error=String> {
+    Ok(()).into_future()
 }

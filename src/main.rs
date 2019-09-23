@@ -1,4 +1,6 @@
+#![recursion_limit="1024"]
 #[macro_use]
+
 extern crate lazy_static;
 
 use simplelog::*;
@@ -11,12 +13,13 @@ mod init;
 mod server_config;
 
 fn main() {
-    SimpleLogger::init(LevelFilter::Info, Config::default()).unwrap();
+    SimpleLogger::init(LevelFilter::Debug, Config::default()).unwrap();
 
     info!(target: "main", "token {:?}", format_secret(config::CONF.token()));
+    let sc = server_config::ConfigProvider::new();
 
     run(lazy(|| {
-        init::run()
+        init::run(sc)
     }));
 }
 
