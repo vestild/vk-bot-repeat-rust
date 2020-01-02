@@ -36,12 +36,17 @@ fn format_secret(s: &str) -> String {
     r
 }
 
-#[test]
-fn test_log_secret() {
-    assert_eq!(format_secret(""), "**");
-    assert_eq!(format_secret("1"), "**");
-    assert_eq!(format_secret("123"), "1**");
-    assert_eq!(format_secret("123456"), "1*****");
-    assert_eq!(format_secret("1234567"), "12***67");
-    assert_eq!(format_secret("123456789"), "12*****89");
+#[cfg(test)]
+mod test{
+    use super::*;
+    
+    #[test]
+    fn test_log_secret() {
+        assert_eq!(format_secret(""), "**");
+        assert_eq!(format_secret("1"), "**");
+        assert_eq!(format_secret("123"), "1**");
+        assert_eq!(format_secret("123456"), "1*****");
+        assert_eq!(format_secret("1234567"), "12***67");
+        assert_eq!(format_secret("123456789"), "12*****89");
+    }
 }

@@ -5,14 +5,14 @@ authors = ["vestild"]
 edition = "2018"
 
 [dependencies]
-lazy_static = "1.3.0"
-simplelog = "^0.5.0"
+lazy_static = "1.4"
+simplelog = "^0.7"
 log = "0.4"
-reqwest = "0.9.18"
+reqwest = "0.10"
 serde = "1.0"
 serde_json = "1.0"
-futures = "0.1.23"
-tokio = { version = "0.1.7", default-features = false, features = ["rt-full", "tcp"] }
+futures = "0.3"
+tokio = { version = "0.2", features = ["full"] }
 tokio-threadpool = "0.1.15"
 
 [profile.release]
