@@ -24,9 +24,9 @@ struct ErrorDescription {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
-    key: String,
-    server: String,
-    ts: String,
+    pub key: String,
+    pub server: String,
+    pub ts: String,
 }
 
 impl Client {

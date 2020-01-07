@@ -1,17 +1,40 @@
 use std::cmp::PartialEq;
 use serde::{Deserialize};
 use serde_json;
+use crate::error::{*};
+use crate::client::{ServerConfig};
+
+pub async fn get_events(client: &reqwest::Client, config: &ServerConfig) -> SimpleResult<Result> {
+    let query = [
+        ("wait", "25"),
+        ("key", &config.key),
+        ("ts", &config.ts)
+    ];
+    let r = client.get(&config.server)
+        .query(&query)
+        .send()
+        .await
+        .map_err(|e| Error::new(format!("got error {} on long poll request", e)))?;
+    let status = r.status();
+    let text = r.text().await.map_err(|e| Error::new(format!("got error {} on long poll request", e)))?;
+    if !status.is_success() {
+        return Err(Error::new(format!("got status {} on long poll request with text {}", status, &text)))
+    }
+    let r: Response = serde_json::from_str(&text)
+        .map_err(|e| Error::new(format!("{:?} on deserialize <{}> from long poll request", e, &text)))?;
+    Ok(r.into())
+}
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(untagged)]
 enum Response {
-    Ok { ts: String, updates: Vec<Event> },
+    Ok { ts: String, updates: Vec<ResponseEvent> },
     Fail { failed: u8, ts: Option<u64> },
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 #[serde(tag = "type", content = "object")]
-enum Event {
+enum ResponseEvent {
     #[serde(rename = "board_post_new")]
     BoardPost(BoardPost),
     #[serde(rename = "wall_post_new")]
@@ -29,6 +52,74 @@ struct WallPost {
 struct BoardPost {
     pub from_id: i64,
     pub text: String,
+}
+
+pub struct Result {
+    ts: Option<String>,
+    refresh_key: bool,
+    refresh_all: bool,
+    events: Vec<Event>,
+}
+
+pub enum Event {
+    BoardPost {from_id: i64, text: String},
+    WallPost {id: i64},
+}
+
+impl From<ResponseEvent> for Option<Event> {
+    fn from(source: ResponseEvent) -> Option<Event> {
+        match source {
+            ResponseEvent::BoardPost(p) => Some(
+                Event::BoardPost {
+                    from_id: p.from_id,
+                    text: p.text,
+                }
+            ),
+            ResponseEvent::WallPost(o) => Some(
+                Event::WallPost {id: o.id}
+            ),
+            ResponseEvent::Other => None,
+        }
+    }
+}
+
+impl From<Response> for Result {
+    fn from(source: Response) -> Result {
+        match source {
+            Response::Fail {failed, ts} => {
+                if failed == 1 && ts.is_some() {
+                    Result {
+                        ts: Some(ts.unwrap().to_string()),
+                        events: vec!(),
+                        refresh_all: false,
+                        refresh_key: false,
+                    }
+                } else if failed == 2 {
+                    Result {
+                        ts: None,
+                        events: vec!(),
+                        refresh_all: false,
+                        refresh_key: true,
+                    }
+                } else {
+                    Result {
+                        ts: None,
+                        events: vec!(),
+                        refresh_all: true,
+                        refresh_key: true,
+                    }
+                }
+            },
+            Response::Ok {ts, updates} => {
+                Result {
+                    ts: Some(ts),
+                    events: updates.into_iter().filter_map(|x| x.into()).collect(),
+                    refresh_all: false,
+                    refresh_key: false,
+                }
+            },
+        }
+    }
 }
 
 #[cfg(test)]
@@ -63,10 +154,10 @@ mod test{
         assert_eq!(Response::Ok{
             ts: "4".to_owned(),
             updates: vec!(
-                Event::WallPost(WallPost{
+                ResponseEvent::WallPost(WallPost{
                     id: 28,
                 }),
-                Event::BoardPost(BoardPost{
+                ResponseEvent::BoardPost(BoardPost{
                     from_id: 1000,
                     text: "some text".to_owned()
                 }),
@@ -83,12 +174,4 @@ mod test{
             ts: Some(30),
         }, result);
     }
-}
-
-pub struct Client {
-    client: reqwest::Client,
-}
-
-impl Client {
-
 }
