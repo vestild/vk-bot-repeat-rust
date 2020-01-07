@@ -1,5 +1,4 @@
 use simple_error::SimpleError;
-use serde::export::fmt::Debug;
 
 pub type Error = simple_error::SimpleError;
 pub type SimpleResult<T> = simple_error::SimpleResult<T>;
@@ -8,13 +7,13 @@ pub trait IntoSimpleError {
     fn wrap(&self, message: &str) -> SimpleError;
 }
 
-impl IntoSimpleError for std::error::Error {
+impl<T> IntoSimpleError for T where T : std::error::Error {
     fn wrap(&self, message: &str) -> Error {
         new(message, self)
     }
 }
 
-fn new<T: std::fmt::Display + ?Sized>(message: &str, cause: &T) -> Error {
+fn new<T: std::fmt::Display>(message: &str, cause: &T) -> Error {
     SimpleError::new(format!("{}, {}", message, cause))
 }
 

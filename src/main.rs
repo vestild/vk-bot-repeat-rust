@@ -9,7 +9,6 @@ mod error;
 
 use simplelog::*;
 use log::{info};
-use futures::future::lazy;
 use server_config::ConfigProvider;
 use client::{Client, ServerConfig};
 use error::SimpleResult;

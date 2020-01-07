@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
-use reqwest::{Response, StatusCode};
+use reqwest::{Response};
 use crate::error::{*};
-use futures::Future;
 use simple_error::SimpleError;
 
 pub struct Client {

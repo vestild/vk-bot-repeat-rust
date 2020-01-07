@@ -2,7 +2,6 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{BufReader, AsyncWriteExt, AsyncBufReadExt, Result};
 use std::io::{SeekFrom};
 use log::{debug};
-use futures::Future;
 use crate::error::{*};
 use crate::client::{Client, ServerConfig};
 
