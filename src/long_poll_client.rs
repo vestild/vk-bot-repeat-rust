@@ -3,9 +3,10 @@ use serde::{Deserialize};
 use serde_json;
 
 #[derive(Debug, Deserialize, PartialEq)]
-struct Response {
-    pub ts: String,
-    pub updates: Vec<Event>,
+#[serde(untagged)]
+enum Response {
+    Ok { ts: String, updates: Vec<Event> },
+    Fail { failed: u8, ts: Option<u64> },
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -35,7 +36,7 @@ mod test{
     use super::*;
 
     #[test]
-    fn deserialize() {
+    fn deserialize_ok() {
         let source = r#"
 {
    "ts":"4",
@@ -59,7 +60,7 @@ mod test{
 }
         "#;
         let result: Response = serde_json::from_str(source).unwrap();
-        assert_eq!(Response{
+        assert_eq!(Response::Ok{
             ts: "4".to_owned(),
             updates: vec!(
                 Event::WallPost(WallPost{
@@ -72,8 +73,22 @@ mod test{
             )
         }, result);
     }
+
+    #[test]
+    fn deserialize_fail() {
+        let source = r#"{"failed":1,"ts":30}"#;
+        let result: Response = serde_json::from_str(source).unwrap();
+        assert_eq!(Response::Fail{
+            failed: 1,
+            ts: Some(30),
+        }, result);
+    }
 }
 
 pub struct Client {
     client: reqwest::Client,
+}
+
+impl Client {
+
 }
