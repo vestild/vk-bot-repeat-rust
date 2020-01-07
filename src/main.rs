@@ -2,6 +2,7 @@
 #[macro_use]
 
 mod client;
+mod long_poll_client;
 mod config;
 mod server_config;
 mod mask_secret;
