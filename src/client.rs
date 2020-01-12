@@ -38,6 +38,10 @@ impl Client {
         }
     }
 
+    pub fn internal_client(&self) -> reqwest::Client {
+        self.client.clone()
+    }
+
     pub async fn long_poll_config(&self, group_id: u64) -> SimpleResult<ServerConfig> {
         let query = [
             ("v", "5.100"),

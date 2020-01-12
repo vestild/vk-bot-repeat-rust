@@ -7,6 +7,7 @@ mod config;
 mod server_config;
 mod mask_secret;
 mod error;
+mod worker;
 
 use simplelog::*;
 use log::{info};
@@ -19,6 +20,7 @@ async fn main() {
     SimpleLogger::init(LevelFilter::Debug, Config::default()).unwrap();
     let client = new_client();
     let (p, c) = new_provider(&client).await.unwrap();
+    worker::main_loop(client, c, p).await;
 }
 
 fn new_client() -> Client {
