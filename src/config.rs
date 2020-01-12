@@ -24,7 +24,7 @@ pub fn group_id() -> u64 {
     get ("VK_BOT_GROUP").parse().expect("not int GROUP")
 }
 
-pub fn chat_peer_id() -> u64 {
+pub fn chat_peer_id() -> i64 {
     get ("VK_BOT_CHAT").parse().expect("not int CHAT")
 }
 

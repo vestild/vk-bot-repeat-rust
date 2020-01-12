@@ -6,6 +6,7 @@ use crate::client::{ServerConfig};
 
 pub async fn get_events(client: &reqwest::Client, config: &ServerConfig) -> SimpleResult<Result> {
     let query = [
+        ("act", "a_check"),
         ("wait", "25"),
         ("key", &config.key),
         ("ts", &config.ts)
@@ -17,11 +18,8 @@ pub async fn get_events(client: &reqwest::Client, config: &ServerConfig) -> Simp
         .map_err(|e| Error::new(format!("got error {} on long poll request", e)))?;
     let status = r.status();
     let text = r.text().await.map_err(|e| Error::new(format!("got error {} on long poll request", e)))?;
-    if !status.is_success() {
-        return Err(Error::new(format!("got status {} on long poll request with text {}", status, &text)))
-    }
     let r: Response = serde_json::from_str(&text)
-        .map_err(|e| Error::new(format!("{:?} on deserialize <{}> from long poll request", e, &text)))?;
+        .map_err(|e| Error::new(format!("{:?} on deserialize <{}> from long poll request, status {}", e, &text, status)))?;
     Ok(r.into())
 }
 
@@ -52,17 +50,19 @@ struct WallPost {
 struct BoardPost {
     pub from_id: i64,
     pub text: String,
+    pub topic_id: i64,
+    pub id: i64,
 }
 
 pub struct Result {
-    ts: Option<String>,
-    refresh_key: bool,
-    refresh_all: bool,
-    events: Vec<Event>,
+    pub ts: Option<String>,
+    pub refresh_key: bool,
+    pub refresh_all: bool,
+    pub events: Vec<Event>,
 }
 
 pub enum Event {
-    BoardPost {from_id: i64, text: String},
+    BoardPost {from_id: i64, text: String, topic_id: i64, id: i64},
     WallPost {id: i64},
 }
 
@@ -73,6 +73,8 @@ impl From<ResponseEvent> for Option<Event> {
                 Event::BoardPost {
                     from_id: p.from_id,
                     text: p.text,
+                    topic_id: p.topic_id,
+                    id: p.id,
                 }
             ),
             ResponseEvent::WallPost(o) => Some(
@@ -143,7 +145,9 @@ mod test{
          "type":"board_post_new",
          "object":{
             "from_id":1000,
-            "text":"some text"
+            "text":"some text",
+            "id": 123,
+            "topic_id": 456
          },
          "group_id":123456
       }
@@ -159,7 +163,9 @@ mod test{
                 }),
                 ResponseEvent::BoardPost(BoardPost{
                     from_id: 1000,
-                    text: "some text".to_owned()
+                    text: "some text".to_owned(),
+                    id: 123,
+                    topic_id: 456,
                 }),
             )
         }, result);

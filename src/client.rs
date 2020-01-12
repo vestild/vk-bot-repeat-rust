@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
 use reqwest::{Response};
+use rand::random;
 use crate::error::{*};
-use simple_error::SimpleError;
 
 pub struct Client {
     client: reqwest::Client,
     url: String,
     token: String,
+    group_id: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,34 +30,83 @@ pub struct ServerConfig {
     pub ts: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+}
+
 impl Client {
-    pub fn new(token: String) -> Client {
+    pub fn new(token: String, group_id: u64) -> Client {
         Client {
             client: reqwest::Client::new(),
             url: "https://api.vk.com/method/".to_string(),
             token,
+            group_id,
         }
     }
 
-    pub fn internal_client(&self) -> reqwest::Client {
+    pub fn raw_client(&self) -> reqwest::Client {
         self.client.clone()
     }
 
-    pub async fn long_poll_config(&self, group_id: u64) -> SimpleResult<ServerConfig> {
+    pub async fn long_poll_config(&self) -> SimpleResult<ServerConfig> {
         let query = [
             ("v", "5.100"),
-            ("group_id", &group_id.to_string()),
+            ("group_id", &self.group_id.to_string()),
             ("access_token", &self.token)
         ];
         send(self, "groups.getLongPollServer", &query).await
-        // groups.getLongPollServer?group_id={}&access_token={}&v=5.100
+    }
+
+    pub async fn send_message(&self, peer_id: i64, text: Option<String>, attachment: Option<String>) -> SimpleResult<()> {
+        let peer_id = peer_id.to_string();
+        let rand = random::<i64>().abs().to_string();
+        let mut query: Vec<(&str, &str)> = vec!(
+            ("v", "5.100"),
+            ("peer_id", &peer_id),
+            ("random_id", &rand),
+            ("access_token", &self.token),
+        );
+
+        if let Some(text) = &text {
+            query.push(("message", text));
+        }
+
+        if let Some(attachment) = &attachment {
+            query.push(("attachment", attachment));
+        }
+
+        let _: i64 = send(self, "messages.send", &query).await?;
+        Ok(())
+    }
+
+    pub async fn get_user(&self, user_id: i64) -> SimpleResult<User> {
+        let user_id = user_id.to_string();
+        let query = [
+            ("v", "5.100"),
+            ("user_ids", &user_id),
+            ("access_token", &self.token)
+        ];
+
+        let r: SimpleResult<Vec<User>> = send(self, "users.get", &query).await;
+        match r {
+            Err(e) => Err(e),
+            Ok(mut list) => {
+                match list.len() {
+                    0 => Err(Error::new(format!("user {} not found", user_id))),
+                    1 => Ok(list.pop().unwrap()),
+                    _ => Err(Error::new(format!("many users: {} found", list.len())))
+                }
+            }
+        }
     }
 }
 
 async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(client: &Client, method: &str, query: &TQuery) -> SimpleResult<T> {
     let url: String = client.url.clone() + method;
-    let r: Response = client.client.get(&url)
-        .query(query)
+    let r: Response = client.client.post(&url)
+        .form(query)
         .send()
         .await
         .map_err(|e| wrap(&e, method))?;
@@ -73,7 +123,7 @@ async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(client: &Client, 
     Ok(r.response.unwrap())
 }
 
-fn wrap(e: &reqwest::Error, method: &str) -> SimpleError {
+fn wrap(e: &reqwest::Error, method: &str) -> Error {
     Error::new(format!("got {:?} from {}", e, method))
 }
 

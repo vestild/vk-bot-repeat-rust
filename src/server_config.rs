@@ -1,7 +1,7 @@
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{BufReader, AsyncWriteExt, AsyncBufReadExt, Result};
 use std::io::{SeekFrom};
-use log::{debug};
+use log::{debug, error};
 use crate::error::{*};
 use crate::client::{Client, ServerConfig};
 
@@ -9,22 +9,22 @@ pub struct ConfigProvider (File);
 
 const FILE_SIZE: u64 = 1024;
 
-pub async fn write(provider: &mut Option<ConfigProvider>, config: &ServerConfig) -> SimpleResult<()> {
-    match provider {
-        Some(p) => write_config(&mut p.0, config)
-            .await
-            .wrap_err("can't write"),
-        None => Ok(())
+pub async fn write(provider: &mut Option<ConfigProvider>, config: &ServerConfig) -> () {
+    if let Some(p) = provider {
+        let r = write_config(&mut p.0, config).await;
+        if let Err(e) = r {
+            error!("{}", e);
+        }
     }
 }
 
-pub async fn with_file(client: &Client, file_name: &str, group_id: u64)
+pub async fn with_file(client: &Client, file_name: &str)
     -> SimpleResult<(ConfigProvider, ServerConfig)> {
     let (mut file, config) = open(file_name).await?;
     let config = match config {
         Some(c) => c,
         None => {
-            let c = client.long_poll_config(group_id).await?;
+            let c = client.long_poll_config().await?;
             write_config(&mut file, &c)
                 .await
                 .wrap_err("can't write")?;
