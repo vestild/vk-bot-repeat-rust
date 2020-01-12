@@ -3,7 +3,7 @@ use std::time::Duration;
 use ctrlc;
 use log::{error};
 use tokio::time::delay_for;
-use futures::{future::FutureExt, pin_mut, select};
+use futures::{future::FutureExt, pin_mut, select, Future};
 use futures_intrusive::sync::ManualResetEvent;
 use crate::error::{*};
 use crate::server_config::{ConfigProvider, write};
@@ -36,17 +36,30 @@ impl Worker {
 
     pub async fn main_loop(&mut self) {
         let raw_client = self.client.raw_client();
+        let stopper = self.stopper.clone();
         while !self.stopper.stopped() {
-            let r = get_events(&raw_client, &self.config).await;
-            match r {
-                Err(e) => {
-                    self.handle_error(&e).await;
-                },
-                Ok(result) => {
-                    self.last_error = false;
-                    self.handle_events(&result.events).await;
-                    self.handle_config(result).await;
-                }
+            let s = stopper.wait().fuse();
+            let p = self.process_events(&raw_client).fuse();
+
+            pin_mut!(p, s);
+
+            select! {
+                _ = p => (),
+                _ = s => return,
+            }
+        }
+    }
+
+    async fn process_events(&mut self, raw_client: &reqwest::Client) {
+        let r = get_events(&raw_client, &self.config).await;
+        match r {
+            Err(e) => {
+                self.handle_error(&e).await;
+            },
+            Ok(result) => {
+                self.last_error = false;
+                self.handle_events(&result.events).await;
+                self.handle_config(result).await;
             }
         }
     }
@@ -141,6 +154,7 @@ impl Worker {
     }
 }
 
+#[derive(Clone)]
 struct Stopper(Arc<ManualResetEvent>);
 
 impl Stopper {
@@ -157,7 +171,7 @@ impl Stopper {
         self.0.is_set()
     }
 
-    async fn wait(&self) {
-        self.0.wait().await
+    fn wait(&self) -> impl Future<Output=()> + '_ {
+        self.0.wait()
     }
 }
