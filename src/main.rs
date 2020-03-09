@@ -17,7 +17,8 @@ use error::SimpleResult;
 
 #[tokio::main(basic_scheduler)]
 async fn main() {
-    SimpleLogger::init(LevelFilter::Debug, Config::default()).unwrap();
+    env_logger::init();
+    //SimpleLogger::init(LevelFilter::Debug, Config::default()).unwrap();
     let client = new_client();
     let (p, c) = new_provider(&client).await.unwrap();
     worker::Worker::new(client, c, p).main_loop().await;
