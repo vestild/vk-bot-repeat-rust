@@ -1,11 +1,11 @@
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{BufReader, AsyncWriteExt, AsyncBufReadExt, Result};
-use std::io::{SeekFrom};
-use log::{debug, error};
-use crate::error::{*};
 use crate::client::{Client, ServerConfig};
+use crate::error::*;
+use log::{debug, error};
+use std::io::SeekFrom;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{AsyncBufReadExt, AsyncSeekExt, AsyncWriteExt, BufReader, Result};
 
-pub struct ConfigProvider (File);
+pub struct ConfigProvider(File);
 
 const FILE_SIZE: u64 = 1024;
 
@@ -18,22 +18,21 @@ pub async fn write(provider: &mut Option<ConfigProvider>, config: &ServerConfig)
     }
 }
 
-pub async fn with_file(client: &Client, file_name: &str)
-    -> SimpleResult<(ConfigProvider, ServerConfig)> {
+pub async fn with_file(
+    client: &Client,
+    file_name: &str,
+) -> SimpleResult<(ConfigProvider, ServerConfig)> {
     let (mut file, config) = open(file_name).await?;
     let config = match config {
         Some(c) => c,
         None => {
             let c = client.long_poll_config().await?;
-            write_config(&mut file, &c)
-                .await
-                .wrap_err("can't write")?;
+            write_config(&mut file, &c).await.wrap_err("can't write")?;
             c
         }
     };
     Ok((ConfigProvider(file), config))
 }
-
 
 async fn open(file_name: &str) -> SimpleResult<(File, Option<ServerConfig>)> {
     let mut file = OpenOptions::new()
@@ -43,26 +42,22 @@ async fn open(file_name: &str) -> SimpleResult<(File, Option<ServerConfig>)> {
         .open(file_name)
         .await
         .wrap_err("can't open")?;
-    let config = read_config(&mut file)
-        .await
-        .wrap_err("can't read config")?;
+    let config = read_config(&mut file).await.wrap_err("can't read config")?;
     if config.is_none() {
-        set_len(&mut file)
-            .await
-            .wrap_err("can't set len")?
+        set_len(&mut file).await.wrap_err("can't set len")?
     }
     Ok((file, config))
 }
 
 async fn read_config(file: &mut File) -> Result<Option<ServerConfig>> {
     file.seek(SeekFrom::Start(0)).await?;
-    let mut line= String::new();
+    let mut line = String::new();
     BufReader::new(file).read_line(&mut line).await?;
     match serde_json::from_str(&line) {
         Ok(c) => {
             debug!("read {:?}", line);
             Ok(Some(c))
-        },
+        }
         _ => Ok(None),
     }
 }

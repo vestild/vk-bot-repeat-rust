@@ -13,3 +13,7 @@ Cargo.lock
 **/*.rs.bk
 
 .idea/*
+/docker-compose.yaml
+
+run.sh
+server_conf.bak
