@@ -1,0 +1,1 @@
+worker: target/release/vk-bot-repeat-rust
