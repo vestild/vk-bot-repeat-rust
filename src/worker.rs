@@ -135,7 +135,7 @@ impl Worker {
                     id,
                 } => {
                     let mut text = text.to_owned();
-                    text.truncate(100);
+                    text.truncate(220);
                     let user = self.client.get_user(*from_id).await;
                     let user_name = match user {
                         Err(e) => {
