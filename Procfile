@@ -1,1 +1,1 @@
-worker: target/release/vk-bot-repeat-rust
+worker: target/debug/vk-bot-repeat-rust
