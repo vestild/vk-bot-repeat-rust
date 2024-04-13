@@ -17,9 +17,20 @@ use server_config::ConfigProvider;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     env_logger::init();
+    info!("start bot");
     let client = new_client();
     let (p, c) = new_provider(&client).await.unwrap();
-    worker::Worker::new(client, c, p).main_loop().await;
+    let ct = tokio_util::sync::CancellationToken::new();
+    let w = tokio::spawn(worker::run(client, c, p, ct.clone()));
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {}
+        Err(err) => {
+            eprintln!("Unable to listen for shutdown signal: {}", err);
+            // we also shut down in case of error
+        }
+    }
+    ct.cancel();
+    w.await.unwrap()
 }
 
 fn new_client() -> Client {

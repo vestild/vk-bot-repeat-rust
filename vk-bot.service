@@ -1,0 +1,11 @@
+[Unit]
+Description=vk repeate bot
+After=network.target network-online.target nss-lookup.target systemd-journald.service
+
+[Service]
+ExecStart=/usr/bin/vk-bot-repeat-rust
+EnvironmentFile=/etc/vk-bot.config
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -12,7 +12,7 @@ pub fn mask(s: &str) -> String {
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
 
     #[test]

@@ -7,7 +7,10 @@ pub trait IntoSimpleError {
     fn wrap(&self, message: &str) -> SimpleError;
 }
 
-impl<T> IntoSimpleError for T where T : std::error::Error {
+impl<T> IntoSimpleError for T
+where
+    T: std::error::Error,
+{
     fn wrap(&self, message: &str) -> Error {
         new(message, self)
     }
@@ -24,7 +27,7 @@ pub trait IntoSimpleResult<T> {
 impl<T> IntoSimpleResult<T> for tokio::io::Result<T> {
     fn wrap_err(self, message: &str) -> SimpleResult<T> {
         match self {
-            Ok(r) =>  Ok(r),
+            Ok(r) => Ok(r),
             Err(e) => Err(new(message, &e)),
         }
     }

@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
-use reqwest::{Response};
+use crate::error::*;
 use rand::random;
-use crate::error::{*};
+use reqwest::Response;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 pub struct Client {
     client: reqwest::Client,
@@ -54,20 +54,25 @@ impl Client {
         let query = [
             ("v", "5.100"),
             ("group_id", &self.group_id.to_string()),
-            ("access_token", &self.token)
+            ("access_token", &self.token),
         ];
         send(self, "groups.getLongPollServer", &query).await
     }
 
-    pub async fn send_message(&self, peer_id: i64, text: Option<String>, attachment: Option<String>) -> SimpleResult<()> {
+    pub async fn send_message(
+        &self,
+        peer_id: i64,
+        text: Option<String>,
+        attachment: Option<String>,
+    ) -> SimpleResult<()> {
         let peer_id = peer_id.to_string();
         let rand = random::<i64>().abs().to_string();
-        let mut query: Vec<(&str, &str)> = vec!(
+        let mut query: Vec<(&str, &str)> = vec![
             ("v", "5.100"),
             ("peer_id", &peer_id),
             ("random_id", &rand),
             ("access_token", &self.token),
-        );
+        ];
 
         if let Some(text) = &text {
             query.push(("message", text));
@@ -86,26 +91,30 @@ impl Client {
         let query = [
             ("v", "5.100"),
             ("user_ids", &user_id),
-            ("access_token", &self.token)
+            ("access_token", &self.token),
         ];
 
         let r: SimpleResult<Vec<User>> = send(self, "users.get", &query).await;
         match r {
             Err(e) => Err(e),
-            Ok(mut list) => {
-                match list.len() {
-                    0 => Err(Error::new(format!("user {} not found", user_id))),
-                    1 => Ok(list.pop().unwrap()),
-                    _ => Err(Error::new(format!("many users: {} found", list.len())))
-                }
-            }
+            Ok(mut list) => match list.len() {
+                0 => Err(Error::new(format!("user {} not found", user_id))),
+                1 => Ok(list.pop().unwrap()),
+                _ => Err(Error::new(format!("many users: {} found", list.len()))),
+            },
         }
     }
 }
 
-async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(client: &Client, method: &str, query: &TQuery) -> SimpleResult<T> {
+async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(
+    client: &Client,
+    method: &str,
+    query: &TQuery,
+) -> SimpleResult<T> {
     let url: String = client.url.clone() + method;
-    let r: Response = client.client.post(&url)
+    let r: Response = client
+        .client
+        .post(&url)
         .form(query)
         .send()
         .await
@@ -113,12 +122,19 @@ async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(client: &Client, 
     let status = r.status();
     let text = r.text().await.map_err(|e| wrap(&e, method))?;
     if !status.is_success() {
-        return Err(Error::new(format!("got status {} on send {} with body {}", status, method, &text)))
+        return Err(Error::new(format!(
+            "got status {} on send {} with body {}",
+            status, method, &text
+        )));
     }
-    let r: ResponseWrapper<T> = serde_json::from_str(&text)
-        .map_err(|e| Error::new(format!("{:?} on deserialize <{}> from {}", e, &text, method)))?;
-    if r.error.is_some() || !r.response.is_some() {
-        return Err(Error::new(format!("got <{}> from {}", &text, method)))
+    let r: ResponseWrapper<T> = serde_json::from_str(&text).map_err(|e| {
+        Error::new(format!(
+            "{:?} on deserialize <{}> from {}",
+            e, &text, method
+        ))
+    })?;
+    if r.error.is_some() || r.response.is_none() {
+        return Err(Error::new(format!("got <{}> from {}", &text, method)));
     }
     Ok(r.response.unwrap())
 }
@@ -126,4 +142,3 @@ async fn send<T: DeserializeOwned, TQuery: Serialize + ?Sized>(client: &Client, 
 fn wrap(e: &reqwest::Error, method: &str) -> Error {
     Error::new(format!("got {:?} from {}", e, method))
 }
-
